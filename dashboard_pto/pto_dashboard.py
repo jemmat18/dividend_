@@ -1,6 +1,47 @@
 # app.py
 import streamlit as st
 
+def federal_tax_2026(income):
+    brackets = [
+        (11600, 0.10),
+        (47150, 0.12),
+        (100525, 0.22),
+        (191950, 0.24),
+        (243725, 0.32),
+        (609350, 0.35),
+        (float("inf"), 0.37),
+    ]
+    tax = 0
+    previous_limit = 0
+    for limit, rate in brackets:
+        if income > limit:
+            tax += (limit - previous_limit) * rate
+            previous_limit = limit
+        else:
+            tax += (income - previous_limit) * rate
+            break
+    return tax
+def maryland_tax(income):
+    return income * 0.0575
+def county_tax(income):
+    return income * 0.032
+
+def payroll_tax(income):
+    social_security_cap = 176100
+    social_security = min(income, social_security_cap) * 0.062
+    medicare = income * 0.0145
+    additional_medicare = 0
+    if income > 200000:
+        additional_medicare = (income - 200000) * 0.009
+    return social_security + medicare + additional_medicare
+
+def total_tax(income):
+    fed = federal_tax_2026(income)
+    state = maryland_tax(income)
+    county = county_tax(income)
+    payroll = payroll_tax(income)
+    return fed + state + county + payroll
+
 st.title("PTO vs Salary After-Tax Model")
 
 # Baseline inputs
@@ -11,16 +52,6 @@ baseline_pto = st.number_input("Baseline PTO days", value=30, step=1)
 known_pto = st.number_input("Known higher PTO days", value=36, step=1)
 known_salary = st.number_input("Salary at known higher PTO", value=263119, step=1000)
 
-# Tax assumptions
-st.subheader("Tax Assumptions")
-federal_tax = st.slider("Federal marginal tax %", 0.0, 50.0, 35.0)
-state_tax = st.slider("State tax %", 0.0, 15.0, 5.75)
-local_tax = st.slider("Local tax %", 0.0, 5.0, 3.2)
-medicare_tax = st.slider("Medicare / payroll tax %", 0.0, 5.0, 2.35)
-
-marginal_tax_rate = (
-    federal_tax + state_tax + local_tax + medicare_tax
-) / 100.0
 
 # PTO slider
 st.subheader("Model PTO")
@@ -31,11 +62,10 @@ salary_loss_per_pto_day = (baseline_salary - known_salary) / (known_pto - baseli
 
 modeled_salary = baseline_salary - salary_loss_per_pto_day * (pto_days - baseline_pto)
 
+
 # Simple after-tax marginal model
 baseline_net_salary = baseline_salary * (1 - marginal_tax_rate)
-modeled_net_salary = baseline_net_salary - (
-    (baseline_salary - modeled_salary) * (1 - marginal_tax_rate)
-)
+modeled_net_salary = modeled_salary - total_tax(modeled_salary)
 
 gross_delta = modeled_salary - baseline_salary
 net_delta = modeled_net_salary - baseline_net_salary
