@@ -127,6 +127,20 @@ baseline_extra_day_net = (
     )
 )
 
+marginal_rate = (
+    total_tax(
+        modeled_salary + 1000,
+        filing_status,
+        pre_tax_401k
+    )
+    -
+    total_tax(
+        modeled_salary,
+        filing_status,
+        pre_tax_401k
+    )
+) / 1000 * 100
+
 # Display
 st.subheader("Results")
 
@@ -165,6 +179,11 @@ st.write(
 st.write(
     f"Each extra PTO day reduces after-tax salary by approximately "
     f"**${baseline_extra_day_net:,.0f}**."
+)
+
+st.subheader("Marginal Tax Rate")
+st.metric(
+    "Marginal Tax Rate",f"{marginal_rate:.2f}%"
 )
 
 # Optional chart
