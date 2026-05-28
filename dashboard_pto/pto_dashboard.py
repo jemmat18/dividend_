@@ -34,14 +34,38 @@ def payroll_tax(income):
         additional_medicare = (income - 200000) * 0.009
     return social_security + medicare + additional_medicare
 
-def total_tax(income):
-    fed     = federal_tax_2026(income)
-    state   = maryland_tax(income)
-    county  = county_tax(income)
-    payroll = payroll_tax(income)
+def total_tax(income, filing_status, pre_tax_401k):
+    standard_deduction_map = {
+    "Single": 16100,
+    "married_joint": 32300,
+    "head_of_household":24150,
+    }
+
+    standard_deduction = standard_deduction_map[filing_status]
+    federal_taxable_income = max(0, income - standard_deduction - pre_tax_401k)
+    fed     = federal_tax_2026(federal_taxable_income)
+    state   = maryland_tax(federal_taxable_income)
+    county  = county_tax(federal_taxable_income)
+    payroll = payroll_tax(federal_taxable_income)
     return fed + state + county + payroll
 
+
 st.title("PTO vs Salary After-Tax Model")
+
+st.subheader("Taxes Inputs")
+filing_status = st.selectbox(
+    "Filing status",
+    ["Single","married_joint","head_of_household"]
+)
+
+
+pre_tax_401k = st.number_input(
+    "401(K) / Pre-Tax Deduction",
+    value= 23500,
+    step =500
+)
+
+
 
 # Baseline inputs
 baseline_salary = st.number_input("Baseline salary at minimum PTO", value=272000, step=1000)
@@ -62,8 +86,16 @@ modeled_salary = baseline_salary - salary_loss_per_pto_day * (pto_days - baselin
 
 
 # Simple after-tax marginal model
-baseline_net_salary = baseline_salary   - total_tax(baseline_salary)
-modeled_net_salary  = modeled_salary    - total_tax(modeled_salary)
+baseline_net_salary = baseline_salary   - total_tax(
+    baseline_salary, 
+    filing_status,
+    pre_tax_401k
+)
+modeled_net_salary  = modeled_salary    - total_tax(
+    modeled_salary,
+    filing_status,
+    pre_tax_401k
+)
 
 gross_delta = modeled_salary - baseline_salary
 net_delta   = modeled_net_salary - baseline_net_salary
@@ -76,11 +108,22 @@ total_workdays      = 260
 actual_workdays     = total_workdays - pto_days
 gross_per_workday   = modeled_salary / actual_workdays
 net_per_workday     = modeled_net_salary / actual_workdays
-effective_tax_rate  = ( total_tax(modeled_salary)/ modeled_salary ) * 100
+effective_tax_rate  = ( total_tax(modeled_salary,filing_status,pre_tax_401k)/ modeled_salary ) * 100
 
-baseline_extra_day_net = ( 
-    salary_loss_per_pto_day - (
-        total_tax(baseline_salary) - total_tax ( baseline_salary - salary_loss_per_pto_day)
+baseline_extra_day_net = (
+    salary_loss_per_pto_day
+    - (
+        total_tax(
+            baseline_salary,
+            filing_status,
+            pre_tax_401k
+        )
+        -
+        total_tax(
+            baseline_salary - salary_loss_per_pto_day,
+            filing_status,
+            pre_tax_401k
+        )
     )
 )
 
@@ -131,7 +174,11 @@ rows = []
 
 for pto in range(30, 100):
     salary      = baseline_salary - salary_loss_per_pto_day * (pto - baseline_pto)
-    net_salary  = salary - total_tax(salary)
+    net_salary  = salary - total_tax(
+        salary,
+        filing_status,
+        pre_tax_401k
+)
     workdays    = total_workdays - pto
     rows.append({
         "PTO Days": pto,
