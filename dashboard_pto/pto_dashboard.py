@@ -55,7 +55,7 @@ known_salary = st.number_input("Salary at known higher PTO", value=263119, step=
 
 # PTO slider
 st.subheader("Model PTO")
-pto_days = st.slider("Total PTO / holidays", 30, 80, 45)
+pto_days = st.slider("Total PTO / holidays", 30, 100, 45)
 
 # Linear PTO-to-salary tradeoff
 salary_loss_per_pto_day = (baseline_salary - known_salary) / (known_pto - baseline_pto)
@@ -81,6 +81,16 @@ net_per_workday = modeled_net_salary / actual_workdays
 
 effective_tax_rate = ( total_tax(modeled_salary)/ modeled_salary ) * 100
 
+baseline_extra_day_net = (
+    salary_loss_per_pto_day
+    - (
+        total_tax(baseline_salary)
+        - total_tax(
+            baseline_salary - salary_loss_per_pto_day
+        )
+    )
+)
+
 # Display
 st.subheader("Results")
 
@@ -104,8 +114,15 @@ col8.metric("Net Pay per Workday", f"${net_per_workday:,.0f}")
 
 st.subheader("PTO Tradeoff")
 
-st.write(f"Each extra PTO day reduces gross salary by approximately **${salary_loss_per_pto_day:,.0f}**.")
-st.write(f"Each extra PTO day reduces after-tax salary by approximately **${salary_loss_per_pto_day * (1 - marginal_tax_rate):,.0f}**.")
+st.write(
+    f"Each extra PTO day reduces gross salary by approximately"
+    f"**${salary_loss_per_pto_day:,.0f}**."
+)
+
+st.write(
+    f"Each extra PTO day reduces after-tax salary by approximately "
+    f"**${baseline_extra_day_net:,.0f}**."
+)
 
 # Optional chart
 import pandas as pd
@@ -114,7 +131,7 @@ rows = []
 
 for pto in range(30, 81):
     salary = baseline_salary - salary_loss_per_pto_day * (pto - baseline_pto)
-    net_salary = baseline_net_salary - ((baseline_salary - salary) * (1 - marginal_tax_rate))
+    net_salary = salary - total_tax(salary)
     workdays = total_workdays - pto
 
     rows.append({
