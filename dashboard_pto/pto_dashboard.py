@@ -64,8 +64,8 @@ modeled_salary = baseline_salary - salary_loss_per_pto_day * (pto_days - baselin
 
 
 # Simple after-tax marginal model
-baseline_net_salary = baseline_salary * (1 - marginal_tax_rate)
-modeled_net_salary = modeled_salary - total_tax(modeled_salary)
+baseline_net_salary = baseline_salary   - total_tax(baseline_salary)
+modeled_net_salary  = modeled_salary    - total_tax(modeled_salary)
 
 gross_delta = modeled_salary - baseline_salary
 net_delta = modeled_net_salary - baseline_net_salary
@@ -76,9 +76,10 @@ net_delta_pct = net_delta / baseline_net_salary * 100
 # Workday model
 total_workdays = 260
 actual_workdays = total_workdays - pto_days
-
 gross_per_workday = modeled_salary / actual_workdays
 net_per_workday = modeled_net_salary / actual_workdays
+
+effective_tax_rate = ( total_tax(modeled_salary)/ modeled_salary ) * 100
 
 # Display
 st.subheader("Results")
@@ -93,8 +94,7 @@ col4, col5, col6 = st.columns(3)
 
 col4.metric("Gross Change vs 30 PTO", f"{gross_delta_pct:.2f}%")
 col5.metric("Net Change vs 30 PTO", f"{net_delta_pct:.2f}%")
-col6.metric("Marginal Tax Rate", f"{marginal_tax_rate * 100:.2f}%")
-
+col6.metric("Effective Tax Rate", f"{effective_tax_rate:.2f}%")
 st.subheader("Effective Daily Pay")
 
 col7, col8 = st.columns(2)
